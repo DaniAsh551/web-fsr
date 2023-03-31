@@ -1,11 +1,11 @@
-import browser from "webextension-polyfill";
-import * as THREE from "three";
-import GUI from "lil-gui";
 import ComparisonSlider from "comparison-slider/src/comparison-slider.ts";
+import GUI from "lil-gui";
+import * as THREE from "three";
+import browser from "webextension-polyfill";
 // shaders
-import vertexShader from "../../vert.glsl?raw";
 import easuFragmentShader from "../../easu.glsl?raw";
 import rcasFragmentShader from "../../rcas.glsl?raw";
+import vertexShader from "../../vert.glsl?raw";
 
 (async () => {
   if (typeof browser.tabs === "undefined") return;
@@ -71,10 +71,11 @@ import rcasFragmentShader from "../../rcas.glsl?raw";
   // canvas content script
   async function injectCanvasContent() {
     // page content dom
-    const mainVideoPlayer = document.getElementById("MainVideoPlayer");
-    const video = Array.from(document.getElementsByTagName("video")).find(
-      (element) => element.src.startsWith("blob:"),
-    );
+    const mainVideoPlayer = document.querySelector("video");
+    // const video = Array.from(document.getElementsByTagName("video")).find(
+    //   (element) => element.src.startsWith("blob:"),
+    // );
+    const video = mainVideoPlayer;
 
     // dom size variables
     let width = 0;
@@ -103,12 +104,12 @@ import rcasFragmentShader from "../../rcas.glsl?raw";
         ? height
         : scaledIResolution.height,
     };
-    // console.log("iResolution", iResolution);
-    // console.log("aspect", aspect);
-    // console.log("scale", scale);
-    // console.log("scaledIResolution", scaledIResolution);
-    // console.log("containerSize", containerSize);
-    // console.log("window.devicePixelRatio", window.devicePixelRatio);
+    console.log("iResolution", iResolution);
+    console.log("aspect", aspect);
+    console.log("scale", scale);
+    console.log("scaledIResolution", scaledIResolution);
+    console.log("containerSize", containerSize);
+    console.log("window.devicePixelRatio", window.devicePixelRatio);
     // initialize dom
     const container = document.createElement("div");
     const containerId = "FSR_CANVAS";
@@ -133,6 +134,7 @@ import rcasFragmentShader from "../../rcas.glsl?raw";
 
     // common object
     const videoTexture = new THREE.VideoTexture(video);
+    console.log("videoTexture",videoTexture);
     const geometry = new THREE.PlaneGeometry(2, 2);
 
     // EASU stage setting
@@ -167,7 +169,96 @@ import rcasFragmentShader from "../../rcas.glsl?raw";
     renderer.setAnimationLoop(animation);
     if (!document.getElementById(containerId)) {
       container.appendChild(canvas);
-      mainVideoPlayer.insertAdjacentElement("beforeend", container);
+
+      const dialog = document.createElement("dialog");
+      dialog.setAttribute("id", "fsr_dialog");
+
+      window.addEventListener("keyup", (e) => {
+        if(e.key.toLowerCase() == "c") dialog.showModal();
+      });
+
+      dialog.appendChild(container);
+
+      const seekBar = document.createElement("div");
+      seekBar.style.width = canvas.style.width;
+      seekBar.style.height = "10px";
+      seekBar.style.backgroundColor = "aqua";
+      seekBar.style.cursor = "pointer";
+      seekBar.style.marginBottom = "20px";
+      const seekBarInside = document.createElement("div");
+      seekBarInside.style.height = "10px";
+      seekBarInside.style.backgroundColor = "yellow";
+      seekBarInside.style.cursor = "pointer";
+      const seekBarTime = document.createElement("p");
+      seekBarTime.style.height = "10px";
+      seekBarTime.style.width = "100%";
+      seekBarTime.style.color = "black";
+      seekBarTime.style.textAlign = "center";
+
+      seekBar.appendChild(seekBarInside);
+      seekBar.appendChild(seekBarTime);
+
+      dialog.appendChild(seekBar);
+      
+      const closeBtn = document.createElement("button");
+      closeBtn.onclick = () => dialog.hidden = true;
+      closeBtn.innerText = "Close";
+      closeBtn.style.marginTop = "20px";
+      dialog.appendChild(closeBtn)
+
+      document.body.appendChild(dialog);
+      dialog.showModal();
+
+      if(!isNaN(video.duration))
+      video.addEventListener("timeupdate", e => {
+        const progress = video.currentTime / video.duration;
+        const seekBarPlayed = progress * 100;
+        seekBarInside.style.width = seekBarPlayed + "%";
+
+        const time = new Date(video.currentTime * 1000).toISOString().substring(11,video.duration < 3600 ? 19 : 16);
+        seekBarTime.innerText = time;
+      });
+
+      window.addEventListener("keyup", e => {
+        const key = e.key.toLowerCase();
+        switch(key) {
+          case "f":
+            if(!e.shiftKey) return;
+            dialog.hidden = !dialog.hidden;
+            break;
+          case " ":
+            if(video.paused) video.play();
+            else video.pause();
+            break;
+          case "arrowright":
+            {
+              if(!video.seekable || isNaN(video.duration)) return;
+              const newTime = video.currentTime + 10;
+              video.fastSeek(Math.min(video.duration, newTime));
+            }
+            break;
+          case "arrowleft":
+            {
+              if(!video.seekable || isNaN(video.duration)) return;
+              const newTime = video.currentTime - 5;
+              video.fastSeek(Math.max(0, newTime));
+            }
+            break;
+          case "arrowup":
+            {
+              video.volume += 1;
+            }
+            break;
+          case "arrowup":
+            {
+              video.volume -= 1;
+            }
+            break;
+            
+        }
+      });
+
+      // mainVideoPlayer.parentElement.appendChild(container, mainVideoPlayer);
     }
     // offscreen render target
     const renderTarget = new THREE.WebGLRenderTarget(
@@ -225,7 +316,9 @@ import rcasFragmentShader from "../../rcas.glsl?raw";
         container: mainVideoPlayer,
       });
     }
-    const videoPlayer = document.getElementById("VideoPlayer");
+    // const videoPlayer = document.getElementById("VideoPlayer");
+    const videoPlayer = document.querySelector("video");
+    console.log("videoPlayer", videoPlayer);
     videoPlayer.setAttribute(
       "style",
       "z-index:8; user-select: auto;",
