@@ -123,6 +123,7 @@ import vertexShader from "../../vert.glsl?raw";
       "ComparisonSlider__After",
     );
     const canvas = document.createElement("canvas");
+    canvas.style.display="inline-block";
     canvas.setAttribute("id", "canvas");
     // camera
     const camera = new THREE.OrthographicCamera(
@@ -177,7 +178,20 @@ import vertexShader from "../../vert.glsl?raw";
         if(e.key.toLowerCase() == "c") dialog.showModal();
       });
 
+      
+      const comparisonContainer = document.createElement("div");
+      comparisonContainer.setAttribute("style", container.getAttribute("style"));
+      comparisonContainer.style.display = "none";
+
+      const comparison = document.createElement("canvas");
+      comparison.width = canvas.width;
+      comparison.height = canvas.height;
+      comparison.style.marginTop = "5px";
+
+      comparisonContainer.appendChild(comparison);
+
       dialog.appendChild(container);
+      dialog.appendChild(comparisonContainer);
 
       const seekBar = document.createElement("div");
       seekBar.style.width = canvas.style.width;
@@ -206,18 +220,34 @@ import vertexShader from "../../vert.glsl?raw";
       closeBtn.style.marginTop = "20px";
       dialog.appendChild(closeBtn)
 
+      const compBtn = document.createElement("button");
+      compBtn.onclick = () => comparisonContainer.style.display = comparisonContainer.style.display == "none" ? "block" : "none";
+      compBtn.innerText = "Compare";
+      compBtn.style.marginTop = "20px";
+      compBtn.style.marginLeft = "10px";
+      dialog.appendChild(compBtn)
+
       document.body.appendChild(dialog);
       dialog.showModal();
 
-      if(!isNaN(video.duration))
+      
       video.addEventListener("timeupdate", e => {
-        const progress = video.currentTime / video.duration;
-        const seekBarPlayed = progress * 100;
-        seekBarInside.style.width = seekBarPlayed + "%";
-
-        const time = new Date(video.currentTime * 1000).toISOString().substring(11,video.duration < 3600 ? 19 : 16);
-        seekBarTime.innerText = time;
+        if(!isNaN(video.duration)) {
+          const progress = video.currentTime / video.duration;
+          const seekBarPlayed = progress * 100;
+          seekBarInside.style.width = seekBarPlayed + "%";
+  
+          const time = new Date(video.currentTime * 1000).toISOString().substring(11,video.duration < 3600 ? 19 : 16);
+          seekBarTime.innerText = time;
+        }
       });
+
+
+      setInterval(() => {
+        if (!video.paused && !video.ended) {
+          comparison.getContext("2d").drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, comparison.width, comparison.height);
+        }
+      }, 1000 / 60);
 
       window.addEventListener("keyup", e => {
         const key = e.key.toLowerCase();
@@ -249,7 +279,7 @@ import vertexShader from "../../vert.glsl?raw";
               video.volume += 1;
             }
             break;
-          case "arrowup":
+          case "arrowdown":
             {
               video.volume -= 1;
             }
